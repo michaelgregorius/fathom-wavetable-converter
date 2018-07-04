@@ -21,6 +21,9 @@ Use the following basic parameters:
                    directory then all files will be put next to the original
                    files.
   -l, --length: The number of samples that's assumed for wave table files.
+  -w: Mode that converts Fathom XML to wav files. Provide the file to convert
+      using the -f option. The resulting file will have the same name as the
+      input file with ".wav" appended.
 
 Parameters for meta data:
   -c, --category: Use the given category for all converted files
@@ -214,6 +217,43 @@ def readWaveTables(filename, lengthOfSingleWave):
 	
 	return (waveForms, errorMessages)
 
+# Functions related to the conversion from Fathom XML to wav
+def readBuffersFromXML(absFilename):
+	tree = ET.parse(absFilename)
+	root = tree.getroot()
+
+	# root is already at "SynthWaveTable" so we search starting from there
+	samples = root.findall("./WaveTable/wave/Buffer/Samples")
+	buffer = []
+	for sample in samples:
+		text = sample.text
+		doubleText = text.split(',')
+		for d in doubleText:
+			buffer.append(float(d))
+	
+	return buffer
+
+def writeWaveFile(filename, buffer):
+	# The wave package can only read and write integer data so we need to
+	# convert the floats from the XML to integers. This is the same value
+	# that we used for the other way around.
+	multiplier = pow(2, 31) - 1
+
+	# ww is a wave_write object
+	ww = wave.open(filename, 'w')
+	ww.setnchannels(1)
+	ww.setsampwidth(4)
+	ww.setframerate(44100)
+	ww.setnframes(len(buffer))
+	for val in buffer:
+		asInt = int(val * multiplier)
+		byte = struct.pack('<i', asInt)
+		ww.writeframesraw(byte)
+
+	ww.close()
+
+
+# Main block starts here
 filename = None
 
 category = "_"
@@ -224,12 +264,13 @@ waveType = "Wave Table"
 startDir = None
 targetDir = None
 absTargetDir = None
+waveDump = False
 
 waveTableName = "Wave Table 1"
 
 lengthOfSingleWave = 2048
 
-opts,args = getopt.getopt(sys.argv[1:],'f:c:a:m:r:t:l:d:g:', ["file=", "category=", "author=", "comment=", "rating=", "type=", "length=", "dir=", "targetdir="])
+opts,args = getopt.getopt(sys.argv[1:],'f:c:a:m:r:t:l:d:g:w', ["file=", "category=", "author=", "comment=", "rating=", "type=", "length=", "dir=", "targetdir="])
 for o, a in opts:
 	if o in ("-f", "--file"):
 		filename = a
@@ -253,7 +294,23 @@ for o, a in opts:
 		startDir = a
 	if o in ("-g", "--targetdir"):
 		targetDir = a
+	if o in ("-w"):
+		waveDump = True
 
+# Quick check if we want to convert Fathom wavetables to wav
+if waveDump:
+	if filename == None:
+		writeError ("Please specify a filename.")
+		printUsage()
+		exit(1)
+	else:
+		absFilename = os.path.abspath(filename)
+		buffer = readBuffersFromXML(absFilename)
+
+		wavFilename = absFilename + ".wav"
+		print ("Writing file " + wavFilename)
+		writeWaveFile(wavFilename, buffer)
+	exit(0)
 
 if startDir != None and filename != None:
 	writeError ("Please specify a source directory or a file exclusively.")
