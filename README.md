@@ -13,6 +13,9 @@ The script takes the following parameters:
                    directory then all files will be put next to the original
                    files.
   -l, --length: The number of samples in one cycle that's assumed for wave table files.
+  -w: Mode that converts Fathom XML to wav files. Provide the file to convert
+      using the -f option. The resulting file will have the same name as the
+      input file with ".wav" appended.
 
 Parameters for meta data:
   -c, --category: Use the given category for all converted files
@@ -42,4 +45,8 @@ FathomWTCreator.py -d source
 Example usage for the meta data:
 ```
 FathomWTCreator.py -f "Input.wav" -c "A category" -a "Joe Doe" -m "A comment" -r 10
+```
+Example usage to convert the file "Input.xml" to "Input.xml.wav":
+```
+FathomWTCreator.py -w -f "Input.xml"
 ```
